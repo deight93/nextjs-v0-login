@@ -85,15 +85,22 @@ export function Home({
       } else {
         // 토큰 갱신이 실패했을 때 처리
         console.error("Failed to refresh token:", response.status);
+        await router.push("/login");
       }
     } catch (error) {
       console.error("Error refreshing token:", error);
     }
   };
 
-  const handleLogout = (e: any) => {
-    sessionStorage.removeItem("accessToken");
-    router.push("/login");
+  const handleLogout = async (e: any) => {
+    await fetch("/api/home", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    await sessionStorage.removeItem("accessToken");
+    await router.push("/login");
   };
 
   return (

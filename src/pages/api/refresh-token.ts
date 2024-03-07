@@ -28,11 +28,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!userData) {
       res.status(400).json({ success: false, data: null });
     } else {
-        const token = jwt.sign({ id: result.rows[0].id }, jwtSecretKey!, { expiresIn: '600s' });
-        const verified = jwt.verify(token, jwtSecretKey!);
-        const decodedToken: any = jwt.decode(token);
-        const expirationTime = decodedToken ? decodedToken.exp * 1000 : 0;
-        res.status(200).json({ success: true, data: token, exp: expirationTime });
+      const token = jwt.sign({ id: result.rows[0].id }, jwtSecretKey!, { expiresIn: '10s' });
+      const verified = jwt.verify(token, jwtSecretKey!);
+      const decodedToken: any = jwt.decode(token);
+      const expirationTime = decodedToken ? decodedToken.exp * 1000 : 0;
+
+      const query = 'UPDATE user_token SET token = $1 WHERE nextjs_user_id = $2';
+      const values = [token, userData.id];
+      await client.query(query, values);
+
+      res.status(200).json({ success: true, data: token, exp: expirationTime });
     }
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });

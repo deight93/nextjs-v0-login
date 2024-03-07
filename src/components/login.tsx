@@ -36,14 +36,15 @@ export function Login() {
     const loginResponseData = await loginResponse.json();
     const accessToken = await loginResponseData.data;
     const exp = await loginResponseData.exp;
-    console.log(exp);
-
-    sessionStorage.setItem("accessToken", accessToken);
+    const error = await loginResponseData.error;
 
     if (loginResponse.ok) {
+      sessionStorage.setItem("accessToken", accessToken);
       router.push("/");
-    } else {
+    } else if (error === "INVALID_PASSWORD") {
       alert("아이디 또는 패스워드를 확인하세요.");
+    } else if (error === "ALREADY_LOGIN") {
+      alert("로그인중입니다.");
     }
   };
 

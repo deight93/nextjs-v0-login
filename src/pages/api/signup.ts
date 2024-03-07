@@ -7,13 +7,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let client;
   let result;
 
-  // 해시 비교 함수
-  // console.log(hashedPassword);
-  // const isValidPassword = await bcrypt.compare("1234", hashedPassword);
-  // console.log(isValidPassword);
-
   try {
-    // 데이터베이스 연결
     client = await pool.connect();
     if (req.method === 'POST') {
       const { firstName, lastName, email, password } = req.body;

@@ -25,8 +25,21 @@ export default function HomePage() {
 
   const isTokenExpired = (token: any) => {
     if (!token) return true;
-    const decodedToken = JSON.parse(atob(token.split(".")[1]));
-    return decodedToken.exp * 1000 < Date.now();
+
+    const parts = token.split(".");
+    if (parts.length !== 3) {
+      // 토큰이 유효하지 않은 형식일 때 처리
+      console.error("Invalid token format:", token);
+      return true;
+    }
+
+    try {
+      const decodedToken = JSON.parse(atob(parts[1]));
+      return decodedToken.exp * 1000 < Date.now();
+    } catch (error) {
+      console.error("Error decoding token:", error);
+      return true;
+    }
   };
 
   return <Home accessToken={accessToken} setAccessToken={setAccessToken} />;

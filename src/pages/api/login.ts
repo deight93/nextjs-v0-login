@@ -15,7 +15,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     client = await pool.connect();
     if (req.method === 'POST') {
       const { email, password } = req.body;
-      const query = `SELECT * FROM nextjs_user WHERE email = '${email}'`;
+      const query = `SELECT nextjs_user.*, user_token.nextjs_user_id, user_token.token
+                      FROM nextjs_user
+                      LEFT JOIN user_token ON nextjs_user.id = user_token.nextjs_user_id
+                      WHERE nextjs_user.email = '${email}';`;
 
       result = await client.query(query);
       const hashedPassword = await result.rows[0].password
@@ -23,14 +26,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } 
     
     if (!isValidPassword) {
-        res.status(400).json({ success: false, data: null });
+        res.status(400).json({ success: false, error: "INVALID_PASSWORD" });
+    } 
+
+    const token = jwt.sign({ id: result.rows[0].id }, jwtSecretKey!, { expiresIn: '10s' });
+    const verified = jwt.verify(token, jwtSecretKey!);
+    const decodedToken: any = jwt.decode(token);
+    const expirationTime = decodedToken ? decodedToken.exp * 1000 : 0;
+    const storedToken = await result.rows[0].token
+    const userId = await result.rows[0].id
+    const nextjsUserId = result.rows[0].nextjs_user_id
+
+    if (storedToken) {
+      try {
+        const verified = jwt.verify(storedToken, jwtSecretKey!);
+        res.status(400).json({ success: false, error: "ALREADY_LOGIN" });
+      } catch (error: any) {
+        if (error.name === 'TokenExpiredError') {
+          const query = 'UPDATE user_token SET token = $1 WHERE nextjs_user_id = $2';
+          const values = [token, userId];
+          await client.query(query, values);
+        }
+      }
+    } else if (!storedToken && nextjsUserId) {
+      const query = 'UPDATE user_token SET token = $1 WHERE nextjs_user_id = $2';
+      const values = [token, userId];
+      await client.query(query, values);
     } else {
-        const token = jwt.sign({ id: result.rows[0].id }, jwtSecretKey!, { expiresIn: '600s' });
-        const verified = jwt.verify(token, jwtSecretKey!);
-        const decodedToken: any = jwt.decode(token);
-        const expirationTime = decodedToken ? decodedToken.exp * 1000 : 0;
-        res.status(200).json({ success: true, data: token, exp: expirationTime });
+      const query = 'INSERT INTO user_token (token, nextjs_user_id) VALUES ($1, $2)';
+      const values = [token, userId];
+      await client.query(query, values);
     }
+    res.status(200).json({ success: true, data: token, exp: expirationTime });
+    
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   } finally {
